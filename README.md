@@ -13,18 +13,18 @@ Boards used so far.
 I would be happy to test with other boards if I get suggestions for boards.
 |Board Name|Manufacturer|Tested|
 |--|--|--|
-|ESP32-POE-ISO|OLIMEX| [x] |
-|ESP32-POE-ISO-EA|OLIMEX| [x] |
-|ESP32-POE-ISO-EA-IND|OLIMEX| [x] |
-|ESP32-POE-ISO-IND|OLIMEX| [x] |
-|ESP32-POE-ISO-WROVER|OLIMEX| [] |
-|ESP32-POE-ISO-WROVER-EA|OLIMEX| [] |
+|ESP32-POE-ISO|OLIMEX| Yes |
+|ESP32-POE-ISO-EA|OLIMEX| Yes |
+|ESP32-POE-ISO-EA-IND|OLIMEX| Yes |
+|ESP32-POE-ISO-IND|OLIMEX| Yes |
+|ESP32-POE-ISO-WROVER|OLIMEX| No |
+|ESP32-POE-ISO-WROVER-EA|OLIMEX| No |
 
 ### ETH.h library supported chips
 The original used ETH.h-Library supports a few LAN-Chips. 
 I would be happy to test with other boards if I get suggestions for boards.
 |Chip|Tested|
 |--|--|
-|LAN8720| [x] |
-|TLK110| [] |
-|W5500| [] |
+|LAN8720| Yes |
+|TLK110| No |
+|W5500| No |
