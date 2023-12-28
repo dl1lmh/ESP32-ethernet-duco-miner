@@ -1,21 +1,6 @@
-#include <Arduino.h>
-
-/*
-   ____  __  __  ____  _  _  _____       ___  _____  ____  _  _
-  (  _ \(  )(  )(_  _)( \( )(  _  )___  / __)(  _  )(_  _)( \( )
-   )(_) ))(__)(  _)(_  )  (  )(_)((___)( (__  )(_)(  _)(_  )  (
-  (____/(______)(____)(_)\_)(_____)     \___)(_____)(____)(_)\_)
-  Official code for ESP32 boards                     version 3.5
-
-  Duino-Coin Team & Community 2019-2022 © MIT Licensed
-  https://duinocoin.com
-  https://github.com/revoxhere/duino-coin
-
-  If you don't know where to start, visit official website and navigate to
-  the Getting Started page. Have fun mining!
-*/
 
 /***************** START OF MINER CONFIGURATION SECTION *****************/
+
 // Change the part in brackets to your Duino-Coin username
 const char *DUCO_USER = "KampfKeks_MRZ";
 // Change the part in brackets to your mining key (if you enabled it in the wallet)
@@ -26,8 +11,97 @@ const char *SSID = "WIFI_NAME";
 const char *WIFI_PASS = "WIFI_PASSWORD";
 // Change the part in brackets if you want to set a custom miner name (use Auto to autogenerate, None for no name)
 const char *RIG_IDENTIFIER = "ESP32-POE";
+
+/************************************************************************/
+
+/***************** START OF HARDWARE CONFIGURATION **********************/
+
+//Uncomment chosen Network-Technology
+#define USE_LAN
+//#define USE_WLAN
+
+// Uncomment the line below if you wish to use a DHT sensor (Duino IoT beta)
+// #define USE_DHT
+
+// Uncomment the line below if you wish to use an AHT10 or AHT20 sensor (Duino IoT beta)
+//#define USE_AHT
+
+// Uncomment the line below if you wish to use an BMP280 sensor (Duino IoT beta)
+//#define USE_BMP280
+
+/* If you would like to use mqtt monitoring uncomment
+   the ENABLE_MQTT defition line(#define ENABLE_MQTT).
+   NOTE: enabling MQTT could slightly decrease hashrate */
+// #define ENABLE_MQTT
+
+// Change this to specify MQTT server (ip only - no prefixes)
+const char *mqtt_server = "";
+// Port mqtt server is listening at (default: 1883)
+const int mqtt_port = 1883;
+
+// If optimizations cause problems, change them to -O0 (the default)
+#pragma GCC optimize ("-Ofast")
+
+// #include "hwcrypto/sha.h" // Uncomment this line if you're using an older
+// version of the ESP32 core and sha_parellel_engine doesn't work for you
+#include "sha/sha_parallel_engine.h"  // Include hardware accelerated hashing library
+
+/* If you're using the ESP32-CAM board or other board
+  that doesn't support OTA (Over-The-Air programming)
+  comment the ENABLE_OTA definition line (#define ENABLE_OTA)
+   NOTE: enabling OTA support may decrease the hashrate */
+ #define ENABLE_OTA
+
+/* If you want to use the web dashboard uncomment the line below */
+// #define WEB_DASHBOARD
+
+/* If you don't want to use the Serial interface comment
+  the ENABLE_SERIAL definition line (#define ENABLE_SERIAL)*/
+#define ENABLE_SERIAL
+
 // Change this if your board has built-in led on non-standard pin
 #define LED_BUILTIN 2
+
+/************************************************************************/
+
+
+
+//Check Config
+#ifdef USE_LAN
+  #ifdef USE_WLAN
+    #error Falsche Netzwerkkonfiguration!
+  #endif
+#endif
+
+
+
+
+
+
+
+
+// Include required libraries
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <esp_task_wdt.h>
+#include <WebServer.h>
+
+#ifdef USE_LAN
+#include <ETH.h>
+#endif
+
+#ifdef ENABLE_OTA
+#include <ArduinoOTA.h>
+#endif
+
+#ifdef ENABLE_MQTT
+#include <PubSubClient.h>
+#endif
+
 
 template<typename T>
 class DuinoIoT {
@@ -38,8 +112,7 @@ typedef struct {
   String val;
 } SensorData_t;
 
-// Uncomment the line below if you wish to use a DHT sensor (Duino IoT beta)
-// #define USE_DHT
+
 #ifdef USE_DHT
   // Install "DHT sensor library" if you get an error
   #include <DHT.h>
@@ -73,8 +146,7 @@ typedef struct {
 
   DuinoIoT<DHT> duinoIoT;
 #endif
-// Uncomment the line below if you wish to use an AHT10 or AHT20 sensor (Duino IoT beta)
-//#define USE_AHT
+
 #ifdef USE_AHT
   // Install "Adafruit AHTX0 Library" if you get an error
   #include <Adafruit_AHTX0.h>
@@ -112,8 +184,7 @@ typedef struct {
   DuinoIoT<Adafruit_AHTX0> duinoIoT;
 #endif
 
-// Uncomment the line below if you wish to use an BMP280 sensor (Duino IoT beta)
-//#define USE_BMP280
+
 #ifdef USE_BMP280
 // Install "Adafruit BMP280 Library" if you get an error
 # include <Adafruit_BMP280.h>
@@ -166,34 +237,7 @@ const bool LED_BLINKING = true;
 // Define watchdog timer seconds
 #define WDT_TIMEOUT 60
 
-// If optimizations cause problems, change them to -O0 (the default)
-#pragma GCC optimize ("-Ofast")
 
-// #include "hwcrypto/sha.h" // Uncomment this line if you're using an older
-// version of the ESP32 core and sha_parellel_engine doesn't work for you
-#include "sha/sha_parallel_engine.h"  // Include hardware accelerated hashing library
-
-/* If you would like to use mqtt monitoring uncomment
-   the ENABLE_MQTT defition line(#define ENABLE_MQTT).
-   NOTE: enabling MQTT could slightly decrease hashrate */
-// #define ENABLE_MQTT
-// Change this to specify MQTT server (ip only - no prefixes)
-const char *mqtt_server = "";
-// Port mqtt server is listening at (default: 1883)
-const int mqtt_port = 1883;
-
-/* If you're using the ESP32-CAM board or other board
-  that doesn't support OTA (Over-The-Air programming)
-  comment the ENABLE_OTA definition line (#define ENABLE_OTA)
-   NOTE: enabling OTA support may decrease the hashrate */
- #define ENABLE_OTA
-
-/* If you want to use the web dashboard uncomment the line below */
-// #define WEB_DASHBOARD
-
-/* If you don't want to use the Serial interface comment
-  the ENABLE_SERIAL definition line (#define ENABLE_SERIAL)*/
-#define ENABLE_SERIAL
 /* ***************** END OF MINER CONFIGURATION SECTION *****************
    Do not change the lines below. These lines are static and dynamic variables
    that will be used by the program for counters and measurements. */
@@ -236,23 +280,7 @@ typedef struct TaskData {
 
 } TaskData_t;
 
-// Include required libraries
-#include <ArduinoJson.h>
-#include <ESPmDNS.h>
-#include <HTTPClient.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
-#include <esp_task_wdt.h>
-#include <WebServer.h>
-#include <ETH.h>
 
-#ifdef ENABLE_OTA
-#include <ArduinoOTA.h>
-#endif
-
-#ifdef ENABLE_MQTT
-#include <PubSubClient.h>
-#endif
 
 // Global Definitions
 #define NUMBEROFCORES 2
@@ -265,6 +293,9 @@ TaskHandle_t WiFirec;
 TaskData_t TaskThreadData[NUMBEROFCORES];
 TaskHandle_t MqttPublishHandle;
 SemaphoreHandle_t xMutex;
+
+static bool eth_connected = false;
+static bool eth_prev_connected = false;
 
 const char * DEVICE = "ESP32";
 const char * POOLPICKER_URL[] = {"https://server.duinocoin.com/getPool"};
@@ -581,7 +612,10 @@ void WiFireconnect(void *pvParameters) {
   const long interval = 500;
   esp_task_wdt_add(NULL);
   for (;;) {
+
+    #ifdef USE_WLAN
     wifi_state = WiFi.status();
+    #endif
 
     #ifdef ENABLE_OTA
         ArduinoOTA.handle();
@@ -594,14 +628,19 @@ void WiFireconnect(void *pvParameters) {
     if (ota_state)  // If OTA is working, reset the watchdog
       esp_task_wdt_reset();
 
+    #ifdef USE_WLAN
     // check if WiFi status has changed.
-    //if ((wifi_state == WL_CONNECTED) && (wifi_prev_state != WL_CONNECTED)) {
+    if ((wifi_state == WL_CONNECTED) && (wifi_prev_state != WL_CONNECTED)) {
       esp_task_wdt_reset();  // Reset watchdog timer
 
       // Connect to MQTT (will do nothing if MQTT is disabled)
       HandleMqttConnection();
 
       // Write Data to Serial
+      Serial.println("\n\nSuccessfully connected to WiFi");
+      Serial.println("Local IP address: " + WiFi.localIP().toString());
+      Serial.println("Rig name: " + String(RIG_IDENTIFIER));
+      Serial.println();
 
       #ifdef WEB_DASHBOARD
         if (!MDNS.begin(RIG_IDENTIFIER)) {
@@ -621,17 +660,11 @@ void WiFireconnect(void *pvParameters) {
       blink(BLINK_SETUP_COMPLETE);// Sucessfull connection with wifi network
 
       // Update Pool and wait a bit
-      double waittime = updatetime + 60000;
-      if (updatetime == 0) {
-        UpdatePool();
-        updatetime = millis();
-      }
+      UpdatePool();
       yield();
-      delay(1000);
-    /*
+      delay(100);
     }
 
-    
     else if ((wifi_state != WL_CONNECTED) &&
              (wifi_prev_state == WL_CONNECTED)) {
       esp_task_wdt_reset();  // Reset watchdog timer
@@ -690,9 +723,68 @@ void WiFireconnect(void *pvParameters) {
       }
     }
     wifi_prev_state = wifi_state;
-    */
+    #endif
+
+    #ifdef USE_LAN
+    if ((eth_connected) && (!eth_prev_connected)) {
+      esp_task_wdt_reset();  // Reset watchdog timer
+
+      // Connect to MQTT (will do nothing if MQTT is disabled)
+      HandleMqttConnection();
+
+      // Write Data to Serial
+      Serial.println("\n\nSuccessfully connected to Ethernet");
+      Serial.println("Local IP address: " + ETH.localIP().toString());
+      Serial.println("Rig name: " + String(RIG_IDENTIFIER));
+      Serial.println();
+
+      #ifdef WEB_DASHBOARD
+        if (!MDNS.begin(RIG_IDENTIFIER)) {
+          Serial.println("mDNS unavailable");
+        }
+        MDNS.addService("http", "tcp", 80);
+        Serial.print("Configured mDNS for dashboard on http://" 
+                      + String(RIG_IDENTIFIER)
+                      + ".local (or http://"
+                      + ETH.localIP().toString()
+                      + ")");
+        server.on("/", dashboard);
+        server.begin();
+      #endif
+
+      // Notify Setup Complete
+      blink(BLINK_SETUP_COMPLETE);// Sucessfull connection with wifi network
+
+      // Update Pool and wait a bit
+      UpdatePool();
+      yield();
+      delay(100);
+    }
+
+    else if ((!eth_connected) && (eth_prev_connected)) {
+      esp_task_wdt_reset();  // Reset watchdog timer
+      Serial.println(F("\nEthernet disconnected!"));
+    }
+
+    else if ((eth_connected) && (eth_prev_connected)) {
+      esp_task_wdt_reset();  // Reset watchdog timer
+      delay(1000);
+    }
+
+    else {
+      // Don't reset watchdog timer
+      unsigned long currentMillis = millis();
+      if (currentMillis - previousMillis >= interval) {
+        previousMillis = currentMillis;
+        Serial.print(F("."));
+      }
+    }
+    eth_prev_connected = eth_connected;
+
+    #endif
   }
 }
+
 
 // Miner Code
 void TaskMining(void *pvParameters) {
@@ -710,12 +802,15 @@ void TaskMining(void *pvParameters) {
       esp_task_wdt_reset();
 
     // Wait for a valid network connection
-    /*
+    #ifdef USE_WLAN
     while (wifi_state != WL_CONNECTED) {
+    #endif
+    #ifdef USE_LAN
+    while (!eth_connected) {
+    #endif
       delay(1000);
       esp_task_wdt_reset();
     }
-    */
 
     // Wait for server to get pool information
     while (port == 0) {
@@ -890,20 +985,55 @@ void TaskMining(void *pvParameters) {
   }
 }
 
+
+#ifdef USE_LAN
+  void WiFiEvent(WiFiEvent_t event){
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      Serial.println("ETH Started");
+      // The hostname must be set after the interface is started, but needs
+      // to be set before DHCP, so set it from the event handler thread.
+      ETH.setHostname(RIG_IDENTIFIER);
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      Serial.println("ETH Connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      Serial.println("ETH Got IP");
+      eth_connected = true;
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      Serial.println("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+  }
+#endif
+
+
 void setup() {
-  Serial.begin(9600);  // Start serial connection
+  Serial.begin(115200);  // Start serial connection
   Serial.println("\n\nDuino-Coin " + String(MINER_BANNER));
 #if (defined(USE_DHT) || defined(USE_AHT) || defined(USE_BMP280))
   duinoIoT.begin();
 #endif
-  ETH.begin();
 
-  /*
+#ifdef USE_WLAN
   WiFi.setSleep(false); // Better network responsiveness
   WiFi.mode(WIFI_STA);  // Setup ESP in client mode
   btStop();
   WiFi.begin(SSID, WIFI_PASS);  // Connect to wifi
-  */
+#endif
+#ifdef USE_LAN
+  WiFi.onEvent(WiFiEvent);  // Will call WiFiEvent() from another thread.
+  ETH.begin();
+#endif
 
   uint64_t chipid = ESP.getEfuseMac();  // Getting chip chip_id
   uint16_t chip =
