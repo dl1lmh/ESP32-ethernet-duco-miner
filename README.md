@@ -29,7 +29,7 @@ I would be happy to test with other boards if I get suggestions for boards.
 |TLK110| No |
 |W5500| No |
 
-### ToDo-List
+## ToDo-List
 - [ ] Code-Cleanup
 - [ ] Add DHCP/Static-IP selection
 - [ ] Code-Reorganisation
