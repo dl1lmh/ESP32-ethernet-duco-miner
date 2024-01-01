@@ -28,3 +28,6 @@ I would be happy to test with other boards if I get suggestions for boards.
 |LAN8720| Yes |
 |TLK110| No |
 |W5500| No |
+
+### Kown Bugs
+Dashboard is not working... 
