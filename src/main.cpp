@@ -140,6 +140,7 @@ namespace {
         UpdateHostPort(input);
       }
 
+    #ifdef USE_LAN
     void WiFiEvent(WiFiEvent_t event)
     {
       switch (event) {
@@ -169,30 +170,11 @@ namespace {
           break;
       }
     }
+    #endif
 
     void SetupWifi() {
-      #ifndef USE_LAN
-        Serial.println("Connecting to: " + String(SSID));
-        WiFi.mode(WIFI_STA); // Setup ESP in client mode
-        #if defined(ESP8266)
-            WiFi.setSleepMode(WIFI_NONE_SLEEP);
-        #else
-            WiFi.setSleep(false);
-        #endif
-        WiFi.begin(SSID, PASSWORD);
-
-        int wait_passes = 0;
-        while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-            delay(500);
-            Serial.print(".");
-
-        }
-
-        Serial.println("\n\nSuccessfully connected to WiFi");
-        Serial.println("Local IP address: " + WiFi.localIP().toString());
-        Serial.println("Rig name: " + String(RIG_IDENTIFIER));
-        Serial.println();
-      #endif
+      
+      #ifdef USE_LAN
         Serial.println("Connecting to Ethernet...");
         WiFi.onEvent(WiFiEvent);  // Will call WiFiEvent() from another thread.
         ETH.begin();
@@ -208,8 +190,30 @@ namespace {
         Serial.println("Rig name: " + String(RIG_IDENTIFIER));
         Serial.println();
 
-      #ifdef USE_LAN
+      #else
+        Serial.println("Connecting to: " + String(SSID));
+        WiFi.mode(WIFI_STA); // Setup ESP in client mode
+        #if defined(ESP8266)
+            WiFi.setSleepMode(WIFI_NONE_SLEEP);
+        #else
+            WiFi.setSleep(false);
+        #endif
+        WiFi.begin(SSID, PASSWORD);
 
+        int wait_passes = 0;
+        while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+            delay(500);
+            Serial.print(".");
+            if (++wait_passes >= 10) {
+                WiFi.begin(SSID, PASSWORD);
+                wait_passes = 0;
+            }
+        }
+
+        Serial.println("\n\nSuccessfully connected to WiFi");
+        Serial.println("Local IP address: " + WiFi.localIP().toString());
+        Serial.println("Rig name: " + String(RIG_IDENTIFIER));
+        Serial.println();
 
       #endif
 
@@ -238,16 +242,14 @@ namespace {
     }
 
     void VerifyWifi() {
-      #ifndef USE_LAN
-        while (WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0))
-            WiFi.reconnect();
-      #endif
-
       #ifdef USE_LAN
         while ((!eth_connected) || (ETH.localIP() == IPAddress(0, 0, 0, 0))) {
           Serial.println("Ethernet connection lost. Reconnect..." );
           SetupWifi();
         }
+      #else
+        while (WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0))
+            WiFi.reconnect();
       #endif
     }
 
@@ -261,7 +263,11 @@ namespace {
         void dashboard() {
              Serial.println("Handling HTTP client");
              String s = WEBSITE;
-             s.replace("@@IP_ADDR@@", ETH.localIP().toString());
+             #ifdef USE_LAN
+              s.replace("@@IP_ADDR@@", ETH.localIP().toString());
+             #else
+              s.replace("@@IP_ADDR@@", WiFi.localIP().toString());
+             #endif
   
              s.replace("@@HASHRATE@@", String(hashrate / 1000));
              s.replace("@@DIFF@@", String(difficulty / 100));
@@ -316,7 +322,7 @@ void task2_func(void *) {
 void setup() {
     delay(500);
     
-    Serial.begin(115200);
+    Serial.begin(500000);
     Serial.println("\n\nDuino-Coin " + String(configuration->MINER_VER));
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -357,8 +363,14 @@ void setup() {
         Serial.println("mDNS unavailable");
       }
       MDNS.addService("http", "tcp", 80);
-      Serial.println("Configured mDNS for dashboard on http://" + String(RIG_IDENTIFIER) 
+      #ifdef USE_LAN
+        Serial.println("Configured mDNS for dashboard on http://" + String(RIG_IDENTIFIER) 
                    + ".local (or http://" + ETH.localIP().toString() + ")");
+      #else
+        Serial.println("Configured mDNS for dashboard on http://" + String(RIG_IDENTIFIER) 
+                   + ".local (or http://" + WiFi.localIP().toString() + ")");
+      #endif
+
       server.on("/", dashboard);
       server.begin();
     #endif

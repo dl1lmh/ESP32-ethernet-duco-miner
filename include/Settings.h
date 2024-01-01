@@ -4,9 +4,9 @@
 
 // ---------------------- General settings ---------------------- //
 // Change the part in brackets to your Duino-Coin username
-extern const char DUCO_USER[] = "USERNAME";
+extern const char DUCO_USER[] = "KampfKeks_MRZ";
 // Change the part in brackets to your mining key (if you have set it in the wallet)
-extern const char MINER_KEY[] = "MINING-KEY";
+extern const char MINER_KEY[] = "Test1234";
 // Change the part in brackets to your WiFi name
 extern const char SSID[] = "SSID";
 // Change the part in brackets to your WiFi password
@@ -15,8 +15,11 @@ extern const char PASSWORD[] = "PASSW0RD";
 // Use Auto to autogenerate, None for no custom identifier
 extern const char RIG_IDENTIFIER[] = "ESP32-POE";
 
-// Uncomment if you want to user LAN
+// Uncomment if you want to use LAN8720
 #define USE_LAN
+
+// Uncomment if you like to use TELNET
+#define USE_TELNET
 
 // Uncomment if you want to host the dashboard page (available on ESPs IP address)
  #define WEB_DASHBOARD
@@ -42,6 +45,13 @@ extern const char RIG_IDENTIFIER[] = "ESP32-POE";
 // NOTE: Untested as of right now
 // #define USE_DHT
 // -------------------------------------------------------------- //
+
+#ifdef USE_TELNET
+  #define TELNET_PORT 23
+  #define TELNET_MAX_USERS 5
+#endif
+
+
 
 #if defined(ESP8266)
     // ESP8266
